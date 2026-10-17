@@ -2654,7 +2654,12 @@ window.addEventListener("pagehide", flushNow);
    ============================================================ */
 (async function boot() {
   const timeout = ms => sleep(ms).then(() => ({ status: "unavailable" }));
-  [S.chrome, S.local] = await Promise.all([Promise.race([chromeStatus(), timeout(4000)]), Promise.race([localStatus(), timeout(4000)])]);
+  const chromeP = chromeStatus(), localP = localStatus();
+  [S.chrome, S.local] = await Promise.all([Promise.race([chromeP, timeout(4000)]), Promise.race([localP, timeout(4000)])]);
+  // Si la tarjeta gráfica tarda en responder (pasa en algunos Windows), se sigue comprobando en segundo plano
+  const late = (p, key) => p.then(r => { if (S[key].status !== "unavailable" || !r) return; S[key] = r; setupAI(); if (!S.busy && S.user) render(); }).catch(() => {});
+  if (S.chrome.status === "unavailable") late(chromeP, "chrome");
+  if (S.local.status === "unavailable") late(localP, "local");
   loadCupo();
   const acc = await Auth.resume();
   if (acc) { enterApp(acc); go("panel"); }
