@@ -542,6 +542,9 @@ textarea#paste{background:var(--surface);line-height:1.6;padding:18px 20px;borde
 .btn.danger.solid,.btn.danger.solid:hover{background:var(--bad);color:#fff}
 .btn.ghost.danger{background:transparent;border-color:transparent}
 .btn:disabled,.btn:disabled:hover{filter:grayscale(.35);box-shadow:none}
+.promo{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-radius:var(--r);border:1px solid var(--primary-line);background:linear-gradient(135deg,rgba(79,124,255,.10),rgba(236,95,168,.10)),var(--glass);box-shadow:var(--card-shadow)}
+.promo-ic{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--btn-grad);color:#fff;box-shadow:var(--btn-glow)}
+.promo-ic svg{width:19px;height:19px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -915,7 +918,10 @@ const CLOUD_AI_URL = "https://estudiaai.alonsojimeneztnt.workers.dev";
 const SYSTEM_BASE = "Eres el motor de inteligencia artificial de estudiaAI, una plataforma educativa para estudiantes de 14 años o más. Trabaja solo con contenido educativo y responde de forma adecuada para menores.";
 const SYSTEM_JSON = " Responde únicamente con JSON válido: sin texto antes ni después y sin bloques de código.";
 const CHROME_LANGS = ["es", "en", "fr", "de"];
-const LOCAL_MODEL = "Qwen3-1.7B-q4f16_1-MLC", LOCAL_SIZE = "alrededor de 1 GB";
+/* Dos versiones del mismo modelo: la normal (necesita "shader-f16") y otra para tarjetas gráficas sin esa función, como algunas de iPad y iPhone */
+const LOCAL_MODELS = { f16: "Qwen3-1.7B-q4f16_1-MLC", f32: "Qwen3-1.7B-q4f32_1-MLC" };
+let LOCAL_MODEL = LOCAL_MODELS.f16;
+const localSize = () => LOCAL_MODEL === LOCAL_MODELS.f16 ? "alrededor de 1 GB" : "alrededor de 1,5 GB";
 const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm";
 const LS_LOCAL = "estudiaai:ia-local";
 /* Cuánto cabe en cada petición según la IA */
@@ -1014,13 +1020,20 @@ async function chromeDownload(btn) {
 let webllmLib = null, localEngine = null, localLoading = null, localProgressFn = null;
 async function localStatus() {
   if (!("gpu" in navigator)) return { status: "unsupported" };
-  try { if (!(await navigator.gpu.requestAdapter())) return { status: "unsupported" }; } catch { return { status: "unsupported" }; }
+  let adapter = null;
+  try { adapter = await navigator.gpu.requestAdapter(); } catch {}
+  if (!adapter) return { status: "unsupported" };
+  let f16 = false;
+  try { f16 = !!(adapter.features && adapter.features.has("shader-f16")); } catch {}
+  LOCAL_MODEL = f16 ? LOCAL_MODELS.f16 : LOCAL_MODELS.f32;
   return { status: LS.get(LS_LOCAL) === LOCAL_MODEL ? "available" : "downloadable" };
 }
 function loadLocalEngine() {
   if (localEngine) return Promise.resolve(localEngine);
   if (!localLoading) localLoading = (async () => {
     webllmLib = webllmLib || await import(WEBLLM_URL);
+    const ids = ((webllmLib.prebuiltAppConfig && webllmLib.prebuiltAppConfig.model_list) || []).map(m => m.model_id);
+    if (ids.length && !ids.includes(LOCAL_MODEL)) throw new Error("Modelo no disponible: " + LOCAL_MODEL);
     localEngine = await webllmLib.CreateMLCEngine(LOCAL_MODEL, { initProgressCallback: r => { if (localProgressFn) localProgressFn(r); } });
     return localEngine;
   })().catch(e => { localLoading = null; throw e; });
@@ -1591,7 +1604,7 @@ function localBlock() {
   const l = S.local || {}, st = l.status;
   const pill = { available: ["ok", "Activa"], downloadable: ["info", "Compatible"], downloading: ["info", "Descargando"] }[st] || ["", "No disponible"];
   const body = st === "available" ? `<p class="small">Descargada en este dispositivo.</p><div><button class="btn sm danger" data-act="local-remove">Borrar la descarga</button></div>`
-    : st === "downloadable" ? `<p class="small">Se descarga una sola vez (${LOCAL_SIZE}). Mejor con wifi y con el dispositivo enchufado.</p><div><button class="btn" data-act="local-download">${icon("download")}Descargar y activar</button></div>`
+    : st === "downloadable" ? `<p class="small">Se descarga una sola vez (${localSize()}). Mejor con wifi y con el dispositivo enchufado.</p><div><button class="btn" data-act="local-download">${icon("download")}Descargar y activar</button></div>`
     : st === "downloading" ? `<p class="small">Descargando… <span id="local-pct" class="num">${Math.round((l.progress || 0) * 100)} %</span>. No cierres esta página.</p>`
     : `<p class="small muted">Este navegador no puede usarla. Necesita Chrome o Edge actualizados en un ordenador, o Safari en iPadOS o iOS 26 o posterior.</p>`;
   return `<div class="provider stack s"><div class="row between"><b class="pname">IA en este dispositivo</b><span class="pill ${pill[0]}">${pill[1]}</span></div><p class="small muted">Gratis y sin límite. Funciona dentro de tu dispositivo: tus apuntes no salen de él. Es más lenta y menos precisa que la IA en la nube.</p>${body}</div>`;
@@ -1686,7 +1699,7 @@ function viewCodigo() {
 function viewConectar() {
   return `<div class="only-mobile">${brandHTML()}</div>
     <div class="stack s"><p class="label">Paso 2 de 2</p><h1 class="auth-title">Activa la IA en este dispositivo</h1>
-    <p class="muted small">${CLOUD_AI_URL ? "Es opcional. Si no la activas, estudiaAI usa una IA gratuita en la nube con un número limitado de exámenes al día. Si la activas, podrás crear exámenes sin límite y tus apuntes no saldrán del dispositivo." : "estudiaAI necesita una IA para crear y corregir tus exámenes. Puedes activarla gratis en este dispositivo."}</p></div>
+    <p class="muted small">${CLOUD_AI_URL ? "<b>Recomendado.</b> Con la IA de tu dispositivo puedes crear exámenes sin límite y tus apuntes no salen de él. Si prefieres no descargarla, estudiaAI usa una IA gratuita en la nube con un número limitado de exámenes al día." : "estudiaAI necesita una IA para crear y corregir tus exámenes. Puedes activarla gratis en este dispositivo."}</p></div>
     ${chromeBlock()}
     ${localBlock()}
     <button class="btn ${S.providers.length ? "primary lg" : "ghost"} block" data-act="go" data-r="panel">${S.providers.length ? "Continuar" : "Ahora no, lo haré más tarde"}</button>`;
@@ -1805,6 +1818,13 @@ function legalPage() {
    Vistas de la aplicación
    ============================================================ */
 const VIEWS = {}, AFTER = {};
+const devicePromo = () => {
+  const l = S.local || {};
+  if (S.profile.devicePromoHidden || l.failed || !S.providers.length || S.providers[0].id !== "cloud") return "";
+  if (l.status === "downloading") return `<div class="promo" aria-live="polite"><span class="promo-ic">${icon("download")}</span><div class="stack s" style="flex:1"><b>Descargando la IA de tu dispositivo… <span id="local-pct" class="num">${Math.round((l.progress || 0) * 100)} %</span></b><span class="small muted">No cierres esta página. Cuando termine, tus exámenes no tendrán límite.</span></div></div>`;
+  if (l.status !== "downloadable") return "";
+  return `<div class="promo"><span class="promo-ic">${icon("spark")}</span><div class="stack s" style="flex:1"><b>Crea exámenes sin límite con la IA de tu dispositivo</b><span class="small muted">Se descarga una sola vez (${localSize()}) y tus apuntes no salen de aquí. Mejor con wifi y con el dispositivo enchufado.</span><div class="row"><button class="btn sm" data-act="local-download">${icon("download")}Descargar y activar</button><button class="btn link small" data-act="device-promo-hide">Ahora no</button></div></div></div>`;
+};
 const aiCallout = (text = "Conecta la IA gratuita de Google para crear y corregir exámenes.") => S.ai ? "" : `<div class="note">${icon("key")}<div class="row between" style="flex:1"><span>${text}</span><button class="btn sm" data-act="go" data-r="perfil" data-focus="ia">Conectar</button></div></div>`;
 function statusPill(a) {
   if (a.status === "corregido") return `<span class="pill ${gradeTone(a.grade)}">${gradeLabel(a.grade)}</span>`;
@@ -1877,6 +1897,7 @@ VIEWS.panel = () => {
     <button class="tile t-warm" data-act="go" data-r="progreso"><span class="t-ic">${icon("chart")}</span><span class="t-go">${icon("go")}</span><span class="t-txt"><b>Mi progreso</b><span>${st.list.length ? "Nota media " + fmtGrade(st.avg) : "Aún sin notas"}</span></span></button>
   </div>
   ${homeTip("panel")}
+  ${devicePromo()}
   ${aiCallout()}
   ${running ? `<div class="note warn">${icon("clock")}<div class="row between" style="flex:1"><span>Tienes un examen ${running.status === "en_curso" ? "a medias" : "sin empezar"}: <b>${esc(running.title)}</b></span><button class="btn sm" data-act="go" data-r="examen" data-id="${running.id}">${running.status === "en_curso" ? "Continuar" : "Empezar"}</button></div></div>` : ""}
   <section class="section">
@@ -2512,6 +2533,7 @@ const ACT = {
     S.exams = S.exams.filter(e => e.id !== id); S.attempts = S.attempts.filter(a => a.examId !== id);
     S.confirmDel = null; Vault.saveSoon(); render(); toast("Examen eliminado.");
   },
+  "device-promo-hide": () => { S.profile.devicePromoHidden = true; saveProfile(); render(); },
   "home-tip-done": () => { S.profile.homeTipDone = true; saveProfile(); render(); },
   "del-subject": el => { S.profile.customSubjects = (S.profile.customSubjects || []).filter(s => s !== el.dataset.s); saveProfile(); render(); },
 };
