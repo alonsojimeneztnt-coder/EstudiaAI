@@ -525,6 +525,23 @@ textarea#paste{background:var(--surface);line-height:1.6;padding:18px 20px;borde
 .legal-links{border-top-color:var(--line)}
 .toast{border-radius:999px;padding:11px 18px}
 .loader .spinner{border-top-color:#8B5CF6}
+/* Todos los botones con el degradado naranja y rosa */
+:root{--btn-grad:linear-gradient(120deg,#FF9A5A 0%,#F86C7E 55%,#EC5FA8 100%);--btn-ink:#E04E7A;--btn-soft:rgba(248,108,126,.12);--btn-glow:0 8px 20px -10px rgba(240,96,126,.8)}
+:root[data-theme="dark"]{--btn-ink:#FF8FA8;--btn-soft:rgba(255,143,168,.14)}
+@media (prefers-color-scheme:dark){:root[data-theme="auto"]{--btn-ink:#FF8FA8;--btn-soft:rgba(255,143,168,.14)}}
+.btn,.btn.primary{background:var(--btn-grad);border-color:transparent;color:#fff;box-shadow:var(--btn-glow)}
+.btn:hover,.btn.primary:hover{background:var(--btn-grad);border-color:transparent;color:#fff;filter:brightness(1.06) saturate(1.05);box-shadow:0 10px 24px -10px rgba(240,96,126,.95)}
+.btn svg{color:currentColor}
+.btn.ghost:not(.toggle):not([data-act="menu"]):not(.danger){background:var(--btn-grad);color:#fff;box-shadow:var(--btn-glow)}
+.btn.ghost:not(.toggle):not([data-act="menu"]):not(.danger):hover{background:var(--btn-grad);color:#fff}
+.btn.ghost.toggle,.btn.ghost[data-act="menu"]{background:transparent;color:var(--btn-ink);box-shadow:none}
+.btn.ghost.toggle:hover,.btn.ghost[data-act="menu"]:hover{background:var(--btn-soft);color:var(--btn-ink);filter:none;box-shadow:none}
+.btn.link,.btn.link:hover{background:none;color:var(--btn-ink);box-shadow:none;filter:none;font-weight:600}
+.btn.danger{background:var(--surface);color:var(--bad);border-color:var(--bad);box-shadow:none}
+.btn.danger:hover{background:var(--bad-soft);color:var(--bad);border-color:var(--bad);filter:none;box-shadow:none}
+.btn.danger.solid,.btn.danger.solid:hover{background:var(--bad);color:#fff}
+.btn.ghost.danger{background:transparent;border-color:transparent}
+.btn:disabled,.btn:disabled:hover{filter:grayscale(.35);box-shadow:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
