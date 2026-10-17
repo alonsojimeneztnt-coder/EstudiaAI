@@ -468,7 +468,32 @@ function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { co
 const srcKey = t => String(t || "").replace(/^=== FUENTE:.*===$/gm, "").replace(/\s+/g, " ").trim();
 const normAns = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 function lev(a, b) { if (a === b) return 0; const m = a.length, n = b.length; if (!m || !n) return m || n; let prev = range(n + 1), cur = new Array(n + 1); for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); [prev, cur] = [cur, prev]; } return prev[n]; }
-function looseMatch(given, accepted) { const g = normAns(given); if (!g) return false; return accepted.some(acc => { const a = normAns(acc); if (!a) return false; if (a === g) return true; const tol = a.length >= 9 ? 2 : a.length >= 5 ? 1 : 0; return lev(a, g) <= tol; }); }
+/* Comparación flexible de respuestas escritas: sin mayúsculas ni tildes, en cualquier orden,
+   con artículos o palabras de más y con faltas leves en cada palabra */
+const STOP = new Set("el la los las lo un una unos unas de del al a ante con en por para y e o u ni que se su sus es son era fue esta este estos estas esa ese eso sea ser muy mas pues como".split(" "));
+const NEG = new Set(["no", "nunca", "jamas", "tampoco", "ninguno", "ninguna", "nada", "sin"]);
+const ansWords = s => normAns(s).split(" ").filter(Boolean);
+const keyWords = s => ansWords(s).filter(w => !STOP.has(w));
+const tolFor = n => n >= 9 ? 2 : n >= 5 ? 1 : 0;
+const wordEq = (a, b) => a === b || (Math.min(a.length, b.length) >= 4 && lev(a, b) <= tolFor(Math.min(a.length, b.length)));
+function looseMatch(given, accepted) {
+  const g = normAns(given); if (!g) return false;
+  const gw = keyWords(given);
+  return accepted.some(acc => {
+    const a = normAns(acc); if (!a) return false;
+    if (a === g || lev(a, g) <= tolFor(a.length)) return true;
+    const aw = keyWords(acc); if (!aw.length) return false;
+    // La negación cambia el significado: si solo una de las dos la tiene, no vale
+    const negG = ansWords(given).some(w => NEG.has(w)), negA = ansWords(acc).some(w => NEG.has(w));
+    if (negG !== negA) return false;
+    // Todas las palabras clave de la respuesta correcta aparecen (en cualquier orden, con faltas leves)
+    const used = new Set();
+    const allFound = aw.every(w => { const i = gw.findIndex((x, k) => !used.has(k) && wordEq(x, w)); if (i < 0) return false; used.add(i); return true; });
+    if (!allFound) return false;
+    // Se permiten unas pocas palabras de más
+    return gw.length - used.size <= Math.max(2, Math.ceil(aw.length * 0.6));
+  });
+}
 function upsert(arr, o) { const i = arr.findIndex(x => x.id === o.id); i < 0 ? arr.push(o) : (arr[i] = o); }
 function saveFile(name, text, type = "text/plain") { const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" })); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500); }
 async function copyText(text, el) { try { await navigator.clipboard.writeText(text); toast("Copiado.", "ok"); } catch { if (el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast("Selecciona el texto y cópialo con Ctrl+C."); } }
@@ -1318,8 +1343,10 @@ async function gradeAttempt(att) {
         const r = await ask(p => `Eres el corrector de estudiaAI. Corrige las respuestas de un estudiante de nivel ${exam.level || S.profile.level || "no indicado"} en la asignatura ${exam.subject}.
 Criterios de la asignatura: ${subjectCriteria(exam.subject)}
 Reglas:
-- Valora el significado, no la literalidad: una explicación equivalente con otras palabras es válida. No exijas copiar los apuntes.
-- En huecos y respuesta corta acepta sinónimos y faltas de ortografía leves si el concepto es correcto. En huecos puntúa la proporción de huecos correctos.
+- Sé flexible: valora el significado, no la forma. Da la respuesta por CORRECTA (puntuación 1) si expresa la misma idea aunque use otras palabras, sinónimos, otro orden, frases más cortas o más largas, o si falta alguna tilde, mayúscula o tiene faltas de ortografía. No exijas copiar los apuntes ni la respuesta modelo.
+- Solo cuenta la ortografía si la pregunta evalúa precisamente la ortografía o la escritura de una palabra en otro idioma.
+- En huecos y respuesta corta acepta sinónimos, variantes y respuestas equivalentes. En huecos puntúa la proporción de huecos correctos.
+- Resta puntos solo por errores de contenido: ideas incorrectas, conceptos esenciales que faltan o respuestas que dicen lo contrario.
 - Teoría: comprueba que incluye los conceptos esenciales ("claves"), que es correcta, suficientemente desarrollada y sin errores conceptuales. Puntúa de forma parcial.
 - Prácticos: valora planteamiento, procedimiento y resultado. Un error de cálculo leve con procedimiento correcto recibe puntuación parcial.
 - "puntuacion" entre 0 y 1 en pasos de 0.25. "veredicto": "correcta" (1), "parcial" (entre 0 y 1) o "incorrecta" (0).
