@@ -1723,7 +1723,7 @@ VIEWS.panel = () => {
   const running = S.attempts.filter(a => a.status === "en_curso" || a.status === "preparado").sort((a, b) => b.createdAt - a.createdAt)[0];
   const first = S.name ? S.name.split(" ")[0] : "";
   return `
-  <header class="page-head"><div><h1>¡Hola${first ? ", " + esc(first) : ""}!</h1><p>¿Qué quieres <span class="hl">estudiar hoy</span>?</p></div>
+  <header class="page-head"><div><h1>¡Hola${first ? ", " + esc(first) : ""}!</h1><p>¿Qué quieres estudiar hoy?</p></div>
     <button class="btn primary" data-act="new-exam">${icon("plus")}Crear un nuevo examen</button></header>
   ${homeTip("panel")}
   ${aiCallout()}
