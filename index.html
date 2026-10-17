@@ -523,7 +523,7 @@ textarea#paste{background:var(--surface);line-height:1.6;padding:18px 20px;borde
 .auth-card{background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5);border:1px solid var(--glass-line);border-radius:28px;padding:34px;box-shadow:var(--shadow)}
 @media (max-width:860px){.auth-card{padding:26px 20px;border-radius:24px}.auth-aside h2{font-size:1.7rem}}
 .legal-links{border-top-color:var(--line)}
-.toast{border-radius:999px;padding:11px 18px}
+.toast{border-radius:16px;padding:12px 18px}
 .loader .spinner{border-top-color:#8B5CF6}
 /* Todos los botones con el degradado naranja y rosa */
 :root{--btn-grad:linear-gradient(120deg,#FF9A5A 0%,#F86C7E 55%,#EC5FA8 100%);--btn-ink:#E04E7A;--btn-soft:rgba(248,108,126,.12);--btn-glow:0 8px 20px -10px rgba(240,96,126,.8)}
@@ -545,6 +545,9 @@ textarea#paste{background:var(--surface);line-height:1.6;padding:18px 20px;borde
 .promo{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-radius:var(--r);border:1px solid var(--primary-line);background:linear-gradient(135deg,rgba(79,124,255,.10),rgba(236,95,168,.10)),var(--glass);box-shadow:var(--card-shadow)}
 .promo-ic{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--btn-grad);color:#fff;box-shadow:var(--btn-glow)}
 .promo-ic svg{width:19px;height:19px}
+.cupo{display:flex;gap:10px;align-items:center;margin:0;padding:10px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);color:var(--ink-2);width:max-content;max-width:100%}
+.cupo svg{flex:none;width:16px;height:16px;color:var(--btn-ink)}
+.cupo.out{border-radius:14px;background:var(--warn-soft);border-color:transparent}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -565,7 +568,7 @@ const LEGAL = {
   domicilio: "",   // Dirección postal completa
   email: "",       // Correo electrónico de contacto
   web: "",         // Dirección web (opcional)
-  actualizado: "15 de octubre de 2026",
+  actualizado: "17 de octubre de 2026",
 };
 
 /* ---------- Utilidades ---------- */
@@ -876,7 +879,7 @@ function subjectCriteria(subject) {
 const S = {
   route: "loading", params: {}, lastRoute: "", user: null, name: "",
   ai: null, providers: [], chrome: { status: "unsupported" }, local: { status: "unsupported" }, serverAI: false,
-  exams: [], attempts: [], profile: {}, draft: null, busy: null,
+  exams: [], attempts: [], profile: {}, draft: null, busy: null, cloudPending: {}, cupo: null,
   run: { idx: 0, timer: null, confirm: false }, resFilter: "all", resSubject: "", confirmDel: null,
   authMode: "login", authForm: { remember: true }, authErr: null, pendingCode: null, codeSaved: false, legalBack: null, showKeyForm: false,
 };
@@ -911,7 +914,7 @@ function applyTheme(t) { t = ["light", "dark", "auto"].includes(t) ? t : "light"
    IA gratuita, en este orden:
    1. IA de Chrome (Gemini Nano), en ordenadores compatibles
    2. Modelo abierto Qwen3 dentro del navegador (WebGPU), si se ha descargado
-   3. IA en la nube gratuita (Cloudflare Workers AI), con un límite diario
+   3. IA en la nube gratuita (Cloudflare Workers AI), con un límite de exámenes por semana
    ============================================================ */
 /* Dirección del servidor de IA en Cloudflare (worker.js). Vacía = sin IA en la nube */
 const CLOUD_AI_URL = "https://estudiaai.alonsojimeneztnt.workers.dev";
@@ -954,18 +957,74 @@ function wrapAI(call) {
 }
 const sleepFor = (ms, signal) => new Promise((res, rej) => { const t = setTimeout(res, ms); if (signal) signal.addEventListener("abort", () => { clearTimeout(t); rej({ code: "cancelled" }); }, { once: true }); });
 
-/* ---------- IA en la nube: servidor gratuito en Cloudflare (worker.js) ---------- */
+/* ---------- IA en la nube: servidor gratuito en Cloudflare (worker.js) ----------
+   Cada examen que se crea con la nube pide un «pase» al servidor, que cuenta los exámenes de la semana
+   de este dispositivo. Con ese pase se analiza, se crea y se corrige ese examen sin gastar otro. */
+const LS_DEVICE = "estudiaai:dispositivo";
+const cloudBase = () => CLOUD_AI_URL.replace(/\/+$/, "");
+function deviceId() {
+  let d = LS.get(LS_DEVICE);
+  if (typeof d !== "string" || !/^[A-Za-z0-9_-]{16,64}$/.test(d)) {
+    d = (self.crypto && crypto.randomUUID ? crypto.randomUUID() : uid() + uid() + uid()).replace(/[^A-Za-z0-9_-]/g, "");
+    LS.set(LS_DEVICE, d);
+  }
+  return d;
+}
+function setCupo(data) {
+  if (!data || data.limite == null) return;
+  S.cupo = { limite: data.limite, quedan: data.quedan, usados: data.usados };
+  const el = $("#cupo"); if (el) el.outerHTML = cupoLine();
+}
+async function loadCupo() {
+  if (!CLOUD_AI_URL) return;
+  try { const r = await fetch(cloudBase() + "/cupo?dispositivo=" + encodeURIComponent(deviceId())); if (r.ok) setCupo(await r.json()); } catch {}
+}
+/* `holder` guarda el pase: el borrador del examen que se está creando (S.cloudPending) o el examen al corregirlo */
+const ticketReqs = new WeakMap();
+async function getTicket(holder, signal) {
+  if (holder.cloudTicket) return holder.cloudTicket;
+  let p = ticketReqs.get(holder);
+  if (!p) {
+    p = (async () => {
+      let res;
+      try { res = await fetch(cloudBase() + "/examen/empezar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivo: deviceId() }), signal }); }
+      catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "net_error" }; }
+      if (res.status === 404) return "-"; // servidor sin límites
+      const data = await res.json().catch(() => ({}));
+      setCupo(data);
+      if (!res.ok) throw { code: data.code || "upstream_error", message: data.message };
+      return data.pase || "-";
+    })();
+    ticketReqs.set(holder, p);
+    p.then(() => ticketReqs.delete(holder), () => ticketReqs.delete(holder));
+  }
+  holder.cloudTicket = await p;
+  return holder.cloudTicket;
+}
 function makeCloudAI() {
   return wrapAI(async (prompt, opts, quiereJson) => {
-    let res;
-    try { res = await fetch(CLOUD_AI_URL.replace(/\/+$/, "") + "/ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, quiere_json: quiereJson, max_tokens: opts.maxTokens }), signal: opts.signal }); }
-    catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "net_error" }; }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw { code: data.code || "upstream_error", message: data.message };
-    if (!str(data.text)) throw { code: "empty_completion" };
-    return data;
+    const holder = opts.ticketHolder || S.cloudPending;
+    for (let intento = 0; ; intento++) {
+      const pase = await getTicket(holder, opts.signal);
+      let res;
+      try { res = await fetch(cloudBase() + "/ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, quiere_json: quiereJson, max_tokens: opts.maxTokens, pase: pase === "-" ? undefined : pase }), signal: opts.signal }); }
+      catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "net_error" }; }
+      const data = await res.json().catch(() => ({}));
+      // El pase ha caducado (más de 7 días) o el servidor ahora pide pase: se pide uno nuevo una vez
+      if ((data.code === "ticket_expired" || data.code === "ticket_required") && intento === 0) { holder.cloudTicket = ""; continue; }
+      if (!res.ok) throw { code: data.code || "upstream_error", message: data.message };
+      if (!str(data.text)) throw { code: "empty_completion" };
+      return data;
+    }
   });
 }
+const cupoLine = () => {
+  const c = S.cupo;
+  if (!c || !S.providers.length || S.providers[0].id !== "cloud") return `<span id="cupo" hidden></span>`;
+  const lo = S.local || {};
+  const extra = c.quedan > 0 ? "Se renuevan cada lunes." : lo.status === "downloadable" ? "Se renuevan el lunes. Mientras tanto, activa la IA de tu dispositivo: no tiene límite." : "Se renuevan el lunes.";
+  return `<p id="cupo" class="cupo small ${c.quedan > 0 ? "" : "out"}">${icon("spark")}<span>IA en la nube: te ${c.quedan === 1 ? "queda" : "quedan"} <b>${c.quedan} de ${c.limite}</b> exámenes esta semana. ${extra}</span></p>`;
+};
 
 /* ---------- IA de Chrome: Gemini Nano, dentro del ordenador ---------- */
 const chromeOpts = img => ({ expectedInputs: [{ type: "text", languages: CHROME_LANGS }, ...(img ? [{ type: "image" }] : [])], expectedOutputs: [{ type: "text", languages: CHROME_LANGS }] });
@@ -1107,6 +1166,10 @@ function aiError(e) {
     no_ai: "La IA todavía no está disponible. Actívala en este dispositivo desde «Perfil y ajustes».",
     daily_limit: "Hoy se han agotado los exámenes gratuitos de la IA en la nube. Vuelve mañana, o activa la IA en este dispositivo desde «Perfil y ajustes».",
     user_daily_limit: "Has llegado a tu límite diario de la IA en la nube. Vuelve mañana, o activa la IA en este dispositivo desde «Perfil y ajustes».",
+    user_weekly_limit: `Has usado tus ${(S.cupo && S.cupo.limite) || 5} exámenes de esta semana con la IA en la nube. Se renuevan el lunes.` + (deviceAIPossible() ? " Mientras tanto, puedes activar la IA de tu dispositivo desde «Perfil y ajustes», que no tiene límite." : ""),
+    ip_weekly_limit: "Desde esta conexión a internet ya se han creado muchos exámenes con la IA en la nube esta semana. Se renuevan el lunes." + (deviceAIPossible() ? " Mientras tanto, puedes activar la IA de tu dispositivo desde «Perfil y ajustes»." : ""),
+    ticket_required: "Hay una versión nueva de estudiaAI. Recarga la página para seguir.",
+    ticket_expired: "No se ha podido continuar con la IA en la nube. Vuelve a intentarlo.",
     forbidden: "Esta copia de estudiaAI no tiene permiso para usar la IA en la nube.",
     net_error: "No se ha podido conectar con la IA en la nube. Revisa tu conexión a internet.",
     overloaded: "La IA en la nube está saturada. Espera un minuto y vuelve a intentarlo.",
@@ -1411,8 +1474,9 @@ ${windowText(c.text, p.maxMaterial, i, nChunks)}`, { signal: ctl.signal, schema:
       duration: d.duration, difficulty: d.difficulty, level: d.level, language: (d.analysis && d.analysis.idioma) || "es", createdAt: Date.now(),
       source: { text: c.text, words: c.words, names: c.parts.map(p => p.name), external: c.external },
       analysis: d.analysis ? { temas: d.analysis.temas, resumen: d.analysis.resumen, max: d.analysis.max, idioma: d.analysis.idioma, avisos: d.analysis.avisos, noAdecuadas: d.analysis.noAdecuadas } : null,
-      questions: qs, requested: items.length,
+      questions: qs, requested: items.length, cloudTicket: S.cloudPending.cloudTicket || "",
     };
+    S.cloudPending = {};
     saveExam(exam);
     const a = newAttempt(exam, qs.map(q => q.id), d.fromExam ? "nuevo" : "primero");
     saveAttempt(a);
@@ -1453,6 +1517,7 @@ function computeGrade(exam, att) {
 async function gradeAttempt(att) {
   const exam = examById(att.examId);
   att.status = "corrigiendo"; att.finishedAt = att.finishedAt || Date.now(); saveAttempt(att);
+  const ticketBefore = exam.cloudTicket;
   const open = [];
   for (const id of att.qids) {
     const q = exam.questions.find(x => x.id === id); if (!q) continue;
@@ -1492,7 +1557,7 @@ MATERIAL DE REFERENCIA (extracto):
 ${exam.source.text.slice(0, p.ref)}
 
 RESPUESTAS A CORREGIR:
-${JSON.stringify(items)}`, { signal: ctl.signal, schema: SCHEMA_GRADES, onWait: busyWait });
+${JSON.stringify(items)}`, { signal: ctl.signal, schema: SCHEMA_GRADES, onWait: busyWait, ticketHolder: exam });
         const list = r && Array.isArray(r.correcciones) ? r.correcciones : Array.isArray(r) ? r : [];
         for (const it of list) {
           const q = chunk.find(x => x.id === it.id); if (!q) continue;
@@ -1503,6 +1568,7 @@ ${JSON.stringify(items)}`, { signal: ctl.signal, schema: SCHEMA_GRADES, onWait: 
       });
     } catch (e) { failed = true; if (e && e.code !== "cancelled") toast(aiError(e), "bad"); }
   }
+  if (exam.cloudTicket !== ticketBefore) saveExam(exam);
   const g = computeGrade(exam, att);
   att.grade = g.grade; att.status = g.pending ? "pendiente" : "corregido";
   saveAttempt(att);
@@ -1611,7 +1677,7 @@ function localBlock() {
 }
 function cloudBlock() {
   return `<div class="provider stack s"><div class="row between"><b class="pname">IA en la nube</b><span class="pill ${CLOUD_AI_URL ? "ok" : ""}">${CLOUD_AI_URL ? "Activa" : "No configurada"}</span></div>${CLOUD_AI_URL
-    ? `<p class="small muted">Gratis, con un número limitado de exámenes al día. Funciona en cualquier dispositivo. Tus apuntes se envían a Cloudflare para procesarlos; no se guardan ni se usan para entrenar modelos.</p>`
+    ? `<p class="small muted">Gratis, con ${S.cupo ? S.cupo.limite : "un número limitado de"} exámenes por semana en cada dispositivo${S.cupo ? ` (esta semana te ${S.cupo.quedan === 1 ? "queda" : "quedan"} ${S.cupo.quedan})` : ""}. Funciona en cualquier dispositivo. Tus apuntes se envían a Cloudflare para procesarlos; no se guardan ni se usan para entrenar modelos.</p>`
     : `<p class="small muted">Todavía no está configurada en esta copia de estudiaAI.</p>`}</div>`;
 }
 const homeTip = (where) => {
@@ -1699,7 +1765,7 @@ function viewCodigo() {
 function viewConectar() {
   return `<div class="only-mobile">${brandHTML()}</div>
     <div class="stack s"><p class="label">Paso 2 de 2</p><h1 class="auth-title">Activa la IA en este dispositivo</h1>
-    <p class="muted small">${CLOUD_AI_URL ? "<b>Recomendado.</b> Con la IA de tu dispositivo puedes crear exámenes sin límite y tus apuntes no salen de él. Si prefieres no descargarla, estudiaAI usa una IA gratuita en la nube con un número limitado de exámenes al día." : "estudiaAI necesita una IA para crear y corregir tus exámenes. Puedes activarla gratis en este dispositivo."}</p></div>
+    <p class="muted small">${CLOUD_AI_URL ? "<b>Recomendado.</b> Con la IA de tu dispositivo puedes crear exámenes sin límite y tus apuntes no salen de él. Si prefieres no descargarla, estudiaAI usa una IA gratuita en la nube con un número limitado de exámenes por semana." : "estudiaAI necesita una IA para crear y corregir tus exámenes. Puedes activarla gratis en este dispositivo."}</p></div>
     ${chromeBlock()}
     ${localBlock()}
     <button class="btn ${S.providers.length ? "primary lg" : "ghost"} block" data-act="go" data-r="panel">${S.providers.length ? "Continuar" : "Ahora no, lo haré más tarde"}</button>`;
@@ -1729,7 +1795,7 @@ const LEGAL_DOCS = {
     <ul>
       <li><b>IA de Chrome (Gemini Nano).</b> Funciona dentro de tu ordenador, con el modelo integrado en Google Chrome. Tu contenido no se envía a ningún servidor.</li>
       <li><b>IA en este dispositivo.</b> Un modelo abierto (Qwen3, de licencia Apache 2.0) que descargas una vez y funciona dentro de tu navegador. Tu contenido no se envía a ningún servidor. La descarga del modelo se hace desde los servidores de Hugging Face y jsDelivr, que reciben la dirección IP de tu dispositivo.</li>
-      <li><b>IA en la nube.</b> El contenido necesario (texto de tus apuntes, preguntas y respuestas) se envía al servicio Workers AI de Cloudflare, Inc. para procesarlo. Según Cloudflare, no se usa para entrenar modelos y no se guarda. Para aplicar el límite diario de uso, se guarda durante un máximo de 26 horas un contador asociado a la dirección IP de tu conexión. Cloudflare puede procesar los datos fuera del Espacio Económico Europeo, lo que supone una transferencia internacional de datos.</li>
+      <li><b>IA en la nube.</b> El contenido necesario (texto de tus apuntes, preguntas y respuestas) se envía al servicio Workers AI de Cloudflare, Inc. para procesarlo. Según Cloudflare, no se usa para entrenar modelos y no se guarda. Para aplicar el límite semanal de exámenes, el servidor de estudiaAI guarda durante un máximo de 15 días un identificador aleatorio de tu dispositivo (no contiene tu nombre ni tu correo), la fecha de cada examen y una huella cifrada e irreversible de la dirección IP de tu conexión, que sirve para evitar abusos. No guarda la dirección IP en sí. Cloudflare puede procesar los datos fuera del Espacio Económico Europeo, lo que supone una transferencia internacional de datos.</li>
     </ul>
     <p>Si subes un PDF o un documento de Word, la aplicación descarga las herramientas de lectura desde los servicios cdnjs (Cloudflare) y jsDelivr, que reciben la dirección IP de tu dispositivo, como en cualquier conexión a internet.</p>
     <p>No incluyas en tus apuntes datos personales de otras personas ni información especialmente sensible.</p>
@@ -1772,7 +1838,7 @@ const LEGAL_DOCS = {
     <h2>6. Inteligencia artificial</h2>
     <p>Las preguntas, correcciones, notas y explicaciones las genera automáticamente un sistema de inteligencia artificial y pueden contener errores. Son una ayuda para estudiar: no son notas oficiales ni sustituyen a tu profesorado ni a tus materiales de referencia. Comprueba siempre la información importante.</p>
     <h2>7. Disponibilidad y cambios</h2>
-    <p>estudiaAI se ofrece tal como está. Su funcionamiento depende de servicios de terceros, como Cloudflare y tu navegador. La IA en la nube tiene un límite diario de uso y puede dejar de estar disponible ese día cuando se alcanza. El titular puede actualizar la aplicación y estas condiciones; la fecha de la última actualización aparece al principio.</p>
+    <p>estudiaAI se ofrece tal como está. Su funcionamiento depende de servicios de terceros, como Cloudflare y tu navegador. La IA en la nube tiene un límite de exámenes por semana en cada dispositivo y un límite diario total, y puede dejar de estar disponible cuando se alcanzan. El titular puede actualizar la aplicación y estas condiciones; la fecha de la última actualización aparece al principio.</p>
     <h2>8. Responsabilidad</h2>
     <p>El titular no responde de los errores del contenido generado por la inteligencia artificial, de la falta de disponibilidad de la IA cuando se alcanza su límite diario ni de la pérdida de datos causada por borrar los datos del navegador o por olvidar tu contraseña y tu código de recuperación. Nada de lo anterior limita los derechos que te reconoce la normativa de consumidores y usuarios.</p>
     <h2>9. Propiedad intelectual</h2>
@@ -1960,6 +2026,7 @@ function stepContent() {
   const ext = canOCR() ? ",.jpg,.jpeg,.png,.webp" : "";
   return `<div class="stack">
     ${aiCallout("Conecta la IA gratuita de Google para analizar tus apuntes.")}
+    ${cupoLine()}
     <div class="tabs" role="tablist">
       ${[["paste", "Pegar apuntes"], ["files", "Subir documentos"], ["topic", "Solo tengo un tema"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-act="tab" data-t="${k}">${l}</button>`).join("")}
     </div>
@@ -2378,7 +2445,7 @@ async function logout(msg) {
   stopTimer(); clearTimeout(answerT);
   const a = S.route === "examen" && attemptById(S.params.id); if (a) saveAttempt(a);
   await Vault.flush(); Auth.clearSession(); await Vault.close();
-  Object.assign(S, { user: null, name: "", exams: [], attempts: [], profile: {}, draft: null, ai: null, providers: [], busy: null, pendingCode: null, codeSaved: false, authMode: "login", authForm: { remember: true }, authErr: null });
+  Object.assign(S, { user: null, name: "", exams: [], attempts: [], profile: {}, draft: null, ai: null, providers: [], busy: null, cloudPending: {}, pendingCode: null, codeSaved: false, authMode: "login", authForm: { remember: true }, authErr: null });
   go("acceso"); toast(msg || "Has cerrado la sesión.");
 }
 const FORMS = {
@@ -2588,6 +2655,7 @@ window.addEventListener("pagehide", flushNow);
 (async function boot() {
   const timeout = ms => sleep(ms).then(() => ({ status: "unavailable" }));
   [S.chrome, S.local] = await Promise.all([Promise.race([chromeStatus(), timeout(4000)]), Promise.race([localStatus(), timeout(4000)])]);
+  loadCupo();
   const acc = await Auth.resume();
   if (acc) { enterApp(acc); go("panel"); }
   else { S.authMode = Object.keys(Auth.list()).length ? "login" : "registro"; go("acceso"); }
