@@ -5,48 +5,58 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>estudiaAI</title>
 <meta name="description" content="Convierte tus apuntes en exámenes y aprende de cada error.">
-<meta name="theme-color" content="#FAF9F6">
+<meta name="theme-color" content="#F5F3FC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="estudiaAI">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%232459E0%22/%3E%3Cpath d=%22M10 9h12v13H12a2 2 0 0 0-2 2z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22m13.5 15 2 2 3.5-3.5%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <script>if(/^https?:$/.test(location.protocol)){var mf=document.createElement("link");mf.rel="manifest";mf.href="manifest.webmanifest";document.head.appendChild(mf);}
 try{var t=localStorage.getItem("estudiaai:tema");if(t==="dark"||t==="auto")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <style>
-/* Diseño: papel cálido y tinta azul, como un cuaderno; mucho aire, pocas líneas y el subrayador amarillo para lo importante */
+/* Diseño: fondo lavanda con luces de colores (azul, violeta, rosa y naranja), tarjetas de cristal y formas redondeadas */
 :root{
-  --bg:#FAF9F6; --surface:#FFFFFF; --soft:#F3F1EC; --hover:#EFEDE7; --line:#E9E5DD; --line-2:#D9D4CA;
-  --ink:#1B2236; --ink-2:#3A4257; --muted:#6C7285; --faint:#9EA2AE;
-  --primary:#3150D8; --primary-hover:#2641BB; --on-primary:#FFFFFF; --primary-soft:#ECF0FD; --primary-line:#C5D0F6;
-  --mark:#FFE58F; --rule:#E3E8F4; --margin:#F2B8B0;
+  --bg:#F5F3FC; --surface:#FFFFFF; --soft:#F0EDFA; --hover:#EAE6F8; --line:#E7E2F3; --line-2:#D8D1EA;
+  --ink:#17142B; --ink-2:#3A3553; --muted:#6D6886; --faint:#A29DB6;
+  --primary:#6246EA; --primary-hover:#5135D6; --on-primary:#FFFFFF; --primary-soft:#EEEAFE; --primary-line:#D3C9FB;
+  --mark:#E3DBFF; --rule:#ECE8F7; --margin:#F6C3D9;
   --ok:#1E7F4C; --ok-soft:#E8F5EC; --bad:#C2483F; --bad-soft:#FBEDEB; --warn:#94650A; --warn-soft:#FBF3DE;
+  --grad:linear-gradient(135deg,#4F7CFF 0%,#8B5CF6 52%,#EC5FA8 100%);
+  --grad-pink:linear-gradient(140deg,#F472B6 0%,#E25A9A 100%);
+  --grad-warm:linear-gradient(140deg,#FB8B5B 0%,#F0607E 100%);
+  --grad-violet:linear-gradient(140deg,#8B7BF7 0%,#6246EA 100%);
+  --glass:rgba(255,255,255,.72); --glass-line:rgba(255,255,255,.9);
+  --aurora:radial-gradient(55% 45% at 10% 0%,rgba(96,130,255,.28),transparent 70%),radial-gradient(45% 40% at 95% 5%,rgba(236,95,168,.20),transparent 70%),radial-gradient(60% 45% at 75% 105%,rgba(251,139,91,.16),transparent 70%);
   --font:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  --display:"Bricolage Grotesque","Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Plus Jakarta Sans","Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
-  --r:14px; --r-sm:10px;
-  --shadow:0 1px 2px rgba(27,34,54,.05),0 12px 32px rgba(27,34,54,.07);
-  --card-shadow:0 1px 2px rgba(27,34,54,.04);
+  --r:20px; --r-sm:12px;
+  --shadow:0 2px 6px rgba(60,40,140,.06),0 24px 48px -12px rgba(60,40,140,.18);
+  --card-shadow:0 1px 2px rgba(60,40,140,.04),0 8px 24px -10px rgba(60,40,140,.12);
   color-scheme:light;
 }
 :root[data-theme="dark"]{
-  --bg:#12141A; --surface:#191C24; --soft:#1F232D; --hover:#252A35; --line:#2A2F3B; --line-2:#3A404E;
-  --ink:#ECEEF3; --ink-2:#C9CDD6; --muted:#979CA9; --faint:#6E7381;
-  --primary:#7C9BFF; --primary-hover:#93ADFF; --on-primary:#0E1630; --primary-soft:#1D2742; --primary-line:#33467A;
-  --mark:#6B5A1E; --rule:#232838; --margin:#5A2E2B;
+  --bg:#0E0C16; --surface:#17141F; --soft:#1E1A29; --hover:#262132; --line:#2B2638; --line-2:#3B3449;
+  --ink:#F1EEF8; --ink-2:#CFC9DD; --muted:#9A93AD; --faint:#6F6882;
+  --primary:#A08BFF; --primary-hover:#B4A3FF; --on-primary:#fff; --primary-soft:#241D3D; --primary-line:#43386E;
+  --mark:#4A3B7A; --rule:#241F31; --margin:#5A2E4B;
   --ok:#52C487; --ok-soft:#13291D; --bad:#F08C82; --bad-soft:#341C1A; --warn:#E3B54A; --warn-soft:#2E2712;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.35); --card-shadow:none; color-scheme:dark;
+  --glass:rgba(30,26,43,.62); --glass-line:rgba(255,255,255,.08);
+  --aurora:radial-gradient(60% 50% at 12% 0%,rgba(110,80,255,.30),transparent 70%),radial-gradient(50% 45% at 92% 8%,rgba(230,60,200,.22),transparent 70%),radial-gradient(60% 50% at 70% 105%,rgba(255,110,80,.14),transparent 70%);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.4); --card-shadow:0 1px 2px rgba(0,0,0,.25); color-scheme:dark;
 }
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
-  --bg:#12141A; --surface:#191C24; --soft:#1F232D; --hover:#252A35; --line:#2A2F3B; --line-2:#3A404E;
-  --ink:#ECEEF3; --ink-2:#C9CDD6; --muted:#979CA9; --faint:#6E7381;
-  --primary:#7C9BFF; --primary-hover:#93ADFF; --on-primary:#0E1630; --primary-soft:#1D2742; --primary-line:#33467A;
-  --mark:#6B5A1E; --rule:#232838; --margin:#5A2E2B;
+  --bg:#0E0C16; --surface:#17141F; --soft:#1E1A29; --hover:#262132; --line:#2B2638; --line-2:#3B3449;
+  --ink:#F1EEF8; --ink-2:#CFC9DD; --muted:#9A93AD; --faint:#6F6882;
+  --primary:#A08BFF; --primary-hover:#B4A3FF; --on-primary:#fff; --primary-soft:#241D3D; --primary-line:#43386E;
+  --mark:#4A3B7A; --rule:#241F31; --margin:#5A2E4B;
   --ok:#52C487; --ok-soft:#13291D; --bad:#F08C82; --bad-soft:#341C1A; --warn:#E3B54A; --warn-soft:#2E2712;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.35); --card-shadow:none; color-scheme:dark;
+  --glass:rgba(30,26,43,.62); --glass-line:rgba(255,255,255,.08);
+  --aurora:radial-gradient(60% 50% at 12% 0%,rgba(110,80,255,.30),transparent 70%),radial-gradient(50% 45% at 92% 8%,rgba(230,60,200,.22),transparent 70%),radial-gradient(60% 50% at 70% 105%,rgba(255,110,80,.14),transparent 70%);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.4); --card-shadow:0 1px 2px rgba(0,0,0,.25); color-scheme:dark;
 }}
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -422,6 +432,99 @@ textarea#paste{line-height:28px;padding-top:10px;background:var(--surface) repea
 .doc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px 32px;box-shadow:var(--card-shadow)}
 @media (max-width:560px){.doc{padding:20px 18px}}
 .toast{border-radius:var(--r-sm)}
+/* ---------- Estilo vivo ---------- */
+body{background:var(--bg)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--aurora)}
+h1,h2,h3,.auth-title,.grade,.stat .v,.brand{font-family:var(--display);letter-spacing:-.025em}
+h1{font-size:2rem;font-weight:700} h2{font-size:1.2rem;font-weight:700} h3{font-weight:700}
+.page-head p{font-size:1.02rem;color:var(--muted)}
+/* Botones en forma de píldora */
+.btn{border-radius:999px;font-weight:600;background:var(--glass);border-color:var(--line-2)}
+.btn:hover{background:var(--surface)}
+.btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 8px 22px -10px rgba(98,70,234,.75)}
+.btn.primary:hover{background:var(--grad);filter:brightness(1.07);box-shadow:0 10px 26px -10px rgba(98,70,234,.9)}
+.btn.ghost,.btn.link{background:transparent;box-shadow:none;border-color:transparent}
+.btn.link{border-radius:6px}
+input[type=text],input[type=email],input[type=password],textarea,select{background:var(--surface);border-radius:var(--r-sm);border-color:var(--line-2)}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
+/* Marca */
+.mark{background:var(--grad);border-radius:9px;box-shadow:0 6px 14px -6px rgba(139,92,246,.8)}
+.brand b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* Barra lateral de cristal */
+.side,.topbar,.exam-top,.legal-top{background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+.side{border-right:1px solid var(--line)}
+.nav button{height:42px;border-radius:12px;font-weight:500}
+.nav button[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:var(--card-shadow)}
+.nav button[aria-current="page"] svg{color:#fff;background:var(--grad);border-radius:7px;padding:3px;width:22px;height:22px;box-sizing:border-box}
+.side-foot{border-top-color:var(--line)}
+/* Tarjetas de cristal */
+.box,.provider,.list,.exam-row,.stat,.qres,.doc,.empty{background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--card-shadow)}
+.box.soft{background:var(--soft);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.list{border-top:1px solid var(--line);overflow:hidden}
+.li{padding:16px 20px}
+.li:last-child{border-bottom:0}
+.li:hover{background:rgba(255,255,255,.35)}
+.exam-row{padding:18px 20px;margin-bottom:12px}
+.stats{gap:14px}
+.stat{padding:18px 20px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:var(--grad);opacity:.12}
+.stat .v{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.stat .v.txt{background:none;color:var(--ink);font-weight:700}
+.empty{border-style:dashed;border-color:var(--line-2)}
+.opt,.q-opt,.chip{background:var(--glass)}
+.opt{border-radius:var(--r)}
+.opt[aria-pressed="true"]{background:var(--primary-soft);border-color:var(--primary)}
+.q-opt{border-radius:14px;padding:14px 16px}
+.chip{border-radius:999px}
+.chip.static{background:var(--soft)}
+.note{border-radius:14px;background:var(--glass);border:1px solid var(--line)}
+.qres{border-left-width:4px;padding:18px 20px}
+.ans-box{border-radius:12px}
+.timer,.qnav button{background:var(--glass);border-radius:999px}
+.qnav button{border-radius:10px}
+/* Pestañas tipo píldora */
+.tabs{gap:6px;border-bottom:0;background:var(--soft);padding:5px;border-radius:999px;width:max-content;max-width:100%}
+.tabs button{height:36px;padding:0 16px;border:0;border-radius:999px;margin:0}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--card-shadow);border-bottom-color:transparent}
+.seg{background:var(--soft);border-radius:999px} .seg button{border-radius:999px} .seg button[aria-selected="true"]{background:var(--surface)}
+/* Cuadro para pegar apuntes, grande y redondeado */
+textarea#paste{background:var(--surface);line-height:1.6;padding:18px 20px;border-radius:22px;border-color:var(--line);box-shadow:var(--shadow)}
+.drop{border-radius:22px;background:var(--glass)}
+/* Accesos de colores en el inicio */
+.tiles{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:auto auto;gap:14px}
+.tile{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;min-height:128px;padding:18px 20px;border:0;border-radius:24px;color:#fff;text-align:left;font:inherit;cursor:pointer;overflow:hidden;box-shadow:0 14px 30px -14px rgba(98,70,234,.55);transition:transform .15s ease,box-shadow .15s ease}
+.tile:hover{transform:translateY(-2px);box-shadow:0 18px 36px -14px rgba(98,70,234,.7)}
+.tile:focus-visible{outline:3px solid var(--primary-line);outline-offset:3px}
+.tile::before{content:"";position:absolute;width:180px;height:180px;right:-50px;bottom:-70px;border-radius:50%;background:rgba(255,255,255,.16)}
+.tile.t-main{grid-row:span 2;background:var(--grad);min-height:270px}
+.tile.t-pink{background:var(--grad-pink);box-shadow:0 14px 30px -14px rgba(226,90,154,.6)}
+.tile.t-warm{background:var(--grad-warm);box-shadow:0 14px 30px -14px rgba(240,96,126,.6)}
+.t-ic{position:absolute;top:16px;left:18px;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.22)}
+.t-go{position:absolute;top:16px;right:18px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(255,255,255,.45)}
+
+.t-ic svg,.t-go svg{width:18px;height:18px;color:#fff}
+.t-txt{position:relative;display:flex;flex-direction:column;gap:2px}
+.t-txt b{font-family:var(--display);font-size:1.12rem;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.t-main .t-txt b{font-size:1.6rem;max-width:12ch}
+.t-txt span{font-size:.86rem;opacity:.9}
+@media (max-width:560px){.tiles{grid-template-columns:1fr 1fr}.tile.t-main{grid-column:span 2;grid-row:auto;min-height:170px}.t-main .t-txt b{font-size:1.35rem;max-width:none}}
+/* Pantalla de acceso con luces de colores */
+.auth{background:var(--bg);position:relative;isolation:isolate}
+.auth::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(75% 60% at 50% 120%,rgba(251,120,60,.7),transparent 70%),
+  radial-gradient(60% 55% at 18% 98%,rgba(236,95,168,.55),transparent 70%),
+  radial-gradient(60% 60% at 85% 70%,rgba(96,130,255,.45),transparent 70%),
+  radial-gradient(60% 50% at 10% 10%,rgba(139,92,246,.30),transparent 70%)}
+.auth-aside{background:transparent;border-right:0}
+.auth-aside::before{content:none}
+.auth-aside h2{font-size:2.5rem;line-height:1.12;max-width:14ch;font-weight:800}
+.how li::before{background:var(--grad);color:#fff;border-color:transparent;font-weight:700}
+.auth-main{background:transparent}
+.auth-card{background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5);border:1px solid var(--glass-line);border-radius:28px;padding:34px;box-shadow:var(--shadow)}
+@media (max-width:860px){.auth-card{padding:26px 20px;border-radius:24px}.auth-aside h2{font-size:1.7rem}}
+.legal-links{border-top-color:var(--line)}
+.toast{border-radius:999px;padding:11px 18px}
+.loader .spinner{border-top-color:#8B5CF6}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -540,6 +643,7 @@ const IC = {
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   left: '<path d="m15 6-6 6 6 6"/>',
   right: '<path d="m9 6 6 6-6 6"/>',
+  go: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
@@ -1749,8 +1853,12 @@ VIEWS.panel = () => {
   const running = S.attempts.filter(a => a.status === "en_curso" || a.status === "preparado").sort((a, b) => b.createdAt - a.createdAt)[0];
   const first = S.name ? S.name.split(" ")[0] : "";
   return `
-  <header class="page-head"><div><h1>¡Hola${first ? ", " + esc(first) : ""}!</h1><p>¿Qué quieres estudiar hoy?</p></div>
-    <button class="btn primary" data-act="new-exam">${icon("plus")}Crear un nuevo examen</button></header>
+  <header class="page-head"><div><h1>¡Hola${first ? ", " + esc(first) : ""}!</h1><p>¿Qué quieres estudiar hoy?</p></div></header>
+  <div class="tiles">
+    <button class="tile t-main" data-act="new-exam"><span class="t-ic">${icon("plus")}</span><span class="t-go">${icon("go")}</span><span class="t-txt"><b>Crear un nuevo examen</b><span>A partir de tus apuntes, un documento o un tema</span></span></button>
+    <button class="tile t-pink" data-act="go" data-r="examenes"><span class="t-ic">${icon("file")}</span><span class="t-go">${icon("go")}</span><span class="t-txt"><b>Mis exámenes</b><span>${S.exams.length} ${S.exams.length === 1 ? "guardado" : "guardados"}</span></span></button>
+    <button class="tile t-warm" data-act="go" data-r="progreso"><span class="t-ic">${icon("chart")}</span><span class="t-go">${icon("go")}</span><span class="t-txt"><b>Mi progreso</b><span>${st.list.length ? "Nota media " + fmtGrade(st.avg) : "Aún sin notas"}</span></span></button>
+  </div>
   ${homeTip("panel")}
   ${aiCallout()}
   ${running ? `<div class="note warn">${icon("clock")}<div class="row between" style="flex:1"><span>Tienes un examen ${running.status === "en_curso" ? "a medias" : "sin empezar"}: <b>${esc(running.title)}</b></span><button class="btn sm" data-act="go" data-r="examen" data-id="${running.id}">${running.status === "en_curso" ? "Continuar" : "Empezar"}</button></div></div>` : ""}
